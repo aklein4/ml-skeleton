@@ -1,13 +1,25 @@
-## versions
-
-```
-transformers==4.57.3
-```
+A simple and highly configurable skeleton for training ML models using pytorch and transformers. Ideal for exotic ML research.
 
 ## Lambda Instance Setup Instructions
 
 1. Create instance with version: `Lambda Stack 22.04`
 
-2. Run command: `git clone https://github.com/aklein4/ml-skeleton.git`
+2. (Optional) install github and login to improve git in VS Code remote SSH
+```
+sudo apt install gh
+gh auth login
+```
 
-3. Run command: `cd ~/ml-skeleton && . setup_vm.sh <WANDB_TOKEN>`
+3. Clone repo
+
+`git clone https://github.com/aklein4/ml-skeleton.git`
+
+4. Setup environment
+
+`cd ~/ml-skeleton && . setup_vm.sh <WANDB_TOKEN>`
+
+5. (Optional) Set your git config to enable contributions
+```
+git config --global user.email "you@example.com"
+git config --global user.name "Your Name"
+```

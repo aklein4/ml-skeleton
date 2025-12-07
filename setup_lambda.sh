@@ -2,24 +2,20 @@
 
 : '
 Setup a TPU VM to use the repo.
- - MUST RUN WITH dot (.) command to set the environment variables in the current shell.
+ - MUST RUN WITH dot (.) command
 
 Arguments:
-    $1: Huggingface token
-    $2: wandb token
+    $1: wandb token
 
 Example:
-    . setup_vm.sh <HF_TOKEN> <WANDB_TOKEN>
+    . setup_vm.sh <WANDB_TOKEN>
 '
 
-# install torch stuff
-pip install torch==2.6.0
+# install torch
+pip install torch==2.9.0
 
 # install extras
-pip install -U transformers datasets webdataset wandb
-
-# login to huggingface
-huggingface-cli login --token $1 --add-to-git-credential
+pip install -r requirements.txt
 
 # login to wandb
-python -m wandb login $2
+python -m wandb login $1
