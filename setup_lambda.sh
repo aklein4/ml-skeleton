@@ -12,7 +12,7 @@ Example:
 '
 
 # install torch
-pip install torch==2.9.0
+pip install torch==2.9.0 torchvision==0.24.0
 
 # install extras
 pip install -r requirements.txt

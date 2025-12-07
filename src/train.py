@@ -20,10 +20,10 @@ def main(config: omegaconf.DictConfig):
 
     else:
         
-        model.config = import_model(config.model.config.type)(
+        model_config = import_model(config.model.config.type)(
             **config.model.config.kwargs
         )
-        model = import_model(config.model.type)(model.config)
+        model = import_model(config.model.type)(model_config)
 
     model = model.to(constants.DEVICE)
     

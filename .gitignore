@@ -1,4 +1,7 @@
 
+# hydra outputs
+outputs/
+
 # local files
 local_data/
 

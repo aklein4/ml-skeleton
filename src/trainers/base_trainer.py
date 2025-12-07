@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 
 import os
@@ -12,7 +10,6 @@ from omegaconf import DictConfig, OmegaConf
 
 from utils.import_utils import import_optimizer, import_collator
 import utils.constants as constants
-from utils.dot_dict import DotDict
 from utils.logging_utils import LogSection
 
 
@@ -73,7 +70,6 @@ class BaseTrainer:
     @torch.no_grad()
     def save_checkpoint(
         self,
-        model,
         step
     ):
         if self.config.debug:
@@ -85,7 +81,7 @@ class BaseTrainer:
                 self.checkpoint_path,
                 f"step_{step:012d}"
             )
-            model.save_pretrained(
+            self.model.save_pretrained(
                 path,
                 push_to_hub=False,
             )
@@ -97,7 +93,7 @@ class BaseTrainer:
         for p in self.model.parameters():
             p.requires_grad_(True)
         self.model.train()
-        if self.config.gradient_checkpointing:
+        if self.config.trainer.gradient_checkpointing:
             self.model.gradient_checkpointing_enable()
 
         # init optimizer
@@ -120,7 +116,7 @@ class BaseTrainer:
 
         # init loop vars
         step = 0
-        pbar = tqdm(desc=f"Training {self.project}/{self.name}")
+        pbar = tqdm(desc=f"Training {self.config.project}/{self.config.name}")
         pbar.update(0)
 
         # train indefinitely
@@ -146,7 +142,7 @@ class BaseTrainer:
                 self.safe_log(loss=loss, **aux)
 
                 # save checkpoint
-                if step % self.checkpoint_interval == 0:
+                if step % self.config.trainer.checkpoint_interval == 0:
                     self.save_checkpoint(step)
 
         # except KeyboardInterrupt:
@@ -169,7 +165,7 @@ class BaseTrainer:
         
         with torch.autocast(
             device_type=str(constants.DEVICE),
-            dtype=self.config.autocast_dtype,
+            dtype=getattr(torch, self.config.trainer.autocast_dtype),
         ):
             loss, aux = self.train_forward(
                 step,
