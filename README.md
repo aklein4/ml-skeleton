@@ -1,5 +1,8 @@
-# Latent Reasoning
-Creating language models that think in their own language.
+## versions
+
+```
+transformers==4.57.3
+```
 
 ## TPU VM Setup Instructions
 
