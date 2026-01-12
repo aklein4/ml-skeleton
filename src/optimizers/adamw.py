@@ -31,6 +31,10 @@ class AdamW(torch.optim.Optimizer):
             Adam's epsilon for numerical stability.
         weight_decay (`float`, *optional*, defaults to 0.0):
             Decoupled weight decay to apply.
+        grad_clip (`float`, *optional*, defaults to `None`):
+            Maximum magnitude to clip element-wise gradients. If `None`, no gradient clipping is applied.
+        nan_safe (`bool`, *optional*, defaults to `False`):
+            Whether to replace NaN and Inf gradients with zeroes.
     """
 
     def __init__(
@@ -44,6 +48,7 @@ class AdamW(torch.optim.Optimizer):
         eps: float = 1e-6,
         weight_decay: float = 0.0,
         grad_clip: float = None,
+        nan_safe: bool = False,
     ):
         if final_lr > lr:
             raise ValueError(f"Invalid final learning rate: {final_lr} - should be <= {lr}")
@@ -63,6 +68,7 @@ class AdamW(torch.optim.Optimizer):
             "eps": eps,
             "weight_decay": weight_decay,
             "grad_clip": grad_clip,
+            "nan_safe": nan_safe
         }
         
         super().__init__(params, defaults)
@@ -98,11 +104,13 @@ class AdamW(torch.optim.Optimizer):
             for p in group["params"]:
                 if p.grad is None:
                     continue
+
                 grad = p.grad
                 if grad.is_sparse:
                     raise RuntimeError("Adam does not support sparse gradients, please consider SparseAdam instead")
 
-                # p.grad.copy_(torch.nan_to_num(p.grad, nan=0, posinf=0, neginf=0))
+                if group["nan_safe"]:
+                    grad.copy_(torch.nan_to_num(grad, nan=0, posinf=0, neginf=0))
 
                 state = self.state[p]
 

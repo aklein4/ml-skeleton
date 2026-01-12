@@ -41,6 +41,8 @@ model:
 
             vocab_size: 32001
 
+            _attn_implementation: flash_attention_2
+
 trainer:
 
     type: lm_trainer.LMTrainer

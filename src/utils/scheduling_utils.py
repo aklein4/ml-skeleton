@@ -1,3 +1,4 @@
+import torch
 
 import math
 
@@ -18,3 +19,13 @@ def get_cosine_schedule_with_warmup_lr(
         max(1.0, float(num_training_steps - num_warmup_steps))
     )
     return final_lr + (base_lr - final_lr) * max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
+
+
+def linear_warmup(
+    step,
+    warmup_steps: int,
+):
+    if isinstance(step, torch.Tensor):
+        return torch.clamp(step / warmup_steps, 0.0, 1.0)
+    
+    return max(0.0, min(1.0, step / warmup_steps))

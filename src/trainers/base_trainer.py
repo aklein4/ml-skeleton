@@ -52,6 +52,12 @@ class BaseTrainer:
                 config=OmegaConf.to_container(self.config, resolve=True),
             )
 
+        self.post_init()
+
+    
+    def post_init(self):
+        return
+
 
     def safe_log(self, **kwargs):
         if self.config.debug:
@@ -75,7 +81,7 @@ class BaseTrainer:
         if self.config.debug:
             return
 
-        with LogSection(f"step {step} checkpoint saving"):
+        with LogSection(f"step {step} checkpoint saving", newline=True):
 
             path = os.path.join(
                 self.checkpoint_path,
@@ -85,6 +91,29 @@ class BaseTrainer:
                 path,
                 push_to_hub=False,
             )
+
+        
+    def manual_checkpoint(self, step):
+        if step % self.config.trainer.manual_checkpoint_interval != 0:
+            return False
+
+        file = os.path.join(
+            constants.LOCAL_DATA_PATH,
+            "save_now.txt"
+        )
+        if not os.path.exists(file):
+            with open(file, "w") as f:
+                f.write("0")
+            return False
+        
+        with open(file, "r") as f:
+            check = f.read().strip() == "1"
+
+        if check:
+            with open(file, "w") as f:
+                f.write("0")
+
+        return check
 
 
     def train(self):
@@ -106,6 +135,7 @@ class BaseTrainer:
         collator = import_collator(self.config.collator.type)(
             **self.config.collator.kwargs
         )
+        collator.skip_steps = self.config.trainer.skip_steps
         loader = torch.utils.data.DataLoader(
             self.dataset,
             batch_size=self.config.batch_size,
@@ -123,6 +153,13 @@ class BaseTrainer:
         while True:
             for batch in loader:
 
+                # skip steps if needed
+                if self.config.trainer.skip_steps is not None:
+                    if step < self.config.trainer.skip_steps:
+                        step += 1
+                        pbar.update(1)
+                        continue
+
                 loss, aux = self.train_step(
                     step,
                     optimizer,
@@ -139,10 +176,15 @@ class BaseTrainer:
                 )
 
                 # log to wandb
-                self.safe_log(loss=loss, **aux)
+                triggered_save = aux.pop("save_checkpoint", False)
+                self.safe_log(
+                    loss=loss,
+                    **aux,
+                    **optimizer.get_log_info()
+                )
 
                 # save checkpoint
-                if step % self.config.trainer.checkpoint_interval == 0:
+                if triggered_save or step % self.config.trainer.checkpoint_interval == 0 or self.manual_checkpoint(step):
                     self.save_checkpoint(step)
 
         # except KeyboardInterrupt:
@@ -173,6 +215,9 @@ class BaseTrainer:
             )
         
         loss.backward()
+
+        if step == 0:
+            self.debug_gradients()
 
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
