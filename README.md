@@ -1,8 +1,16 @@
 A simple and highly configurable skeleton for training ML models using pytorch and transformers. Ideal for exotic ML research.
 
+## Notes
+ - remember to remove any identifying information (such as HF id) before anonymous submission
+
 ## Lambda Instance Setup Instructions
 
-1. Create instance with version: `Lambda Stack 22.04`
+1. Create instance with version: `Lambda Stack 22.04`. This comes with:
+```
+torch==2.7.0
+torchvision==0.22.0
+flash-attn==2.7.4.post1
+```
 
 2. (Optional) install github and login to improve git in VS Code remote SSH
 ```
