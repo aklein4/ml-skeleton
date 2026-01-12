@@ -267,6 +267,7 @@ class LlamaAttention(nn.Module):
 
 class CustomLlamaDecoderLayer(GradientCheckpointingLayer):
     
+    pre_forward_kwargs = []
     post_forward_kwargs = []
 
 
@@ -300,7 +301,7 @@ class CustomLlamaDecoderLayer(GradientCheckpointingLayer):
         use_cache: Optional[bool] = False,
         cache_position: Optional[torch.LongTensor] = None,
         position_embeddings: Optional[tuple[torch.Tensor, torch.Tensor]] = None,  # necessary, but kept here for BC
-        # **kwargs: Unpack[TransformersKwargs],
+        # **kwargs: Unpack[TransformersKwargs], remove because doesn't work with gradient checkpointing
     ) -> torch.Tensor:
         
         assert len(kwarg_keys) == len(args)
@@ -308,6 +309,16 @@ class CustomLlamaDecoderLayer(GradientCheckpointingLayer):
         for k, v in zip(kwarg_keys, args):
             kwargs[k] = v
         
+        pre_kwargs = {}
+        for k in self.pre_forward_kwargs:
+            if k in kwargs.keys():
+                pre_kwargs[k] = kwargs[k]
+            elif k in locals().keys():
+                pre_kwargs[k] = locals()[k]
+            else:
+                pre_kwargs[k] = None
+        hidden_states, results = self.pre_forward(hidden_states, **post_kwargs)
+
         residual = hidden_states
         hidden_states = self.input_layernorm(hidden_states)
         # Self Attention
@@ -331,18 +342,22 @@ class CustomLlamaDecoderLayer(GradientCheckpointingLayer):
 
         post_kwargs = {}
         for k in self.post_forward_kwargs:
-            if k == "hidden_states":
-                continue
-            if k in kwargs:
+            if k in kwargs.keys():
                 post_kwargs[k] = kwargs[k]
             elif k in locals().keys():
                 post_kwargs[k] = locals()[k]
+            elif k in results.keys():
+                post_kwargs[k] = results[k]
             else:
                 post_kwargs[k] = None
-
-        hidden_states, results = self.post_forward(hidden_states, **post_kwargs)
+        hidden_states, post_results = self.post_forward(hidden_states, **post_kwargs)
+        results.update(post_results)
 
         return hidden_states, results
+
+
+    def pre_forward(self, hidden_states):
+        return hidden_states, {}
 
     def post_forward(self, hidden_states):
         return hidden_states, {}
@@ -453,7 +468,7 @@ class CustomLlamaModel(LlamaPreTrainedModel):
             all_results.append(results)
 
         for d in all_results:
-            assert list(d.keys()) == list(all_results[0].keys())
+            assert set(d.keys()) == set(all_results[0].keys())
         results = {k: [r[k] for r in all_results] for k in all_results[0].keys()}
 
         if not self.skip_norm:

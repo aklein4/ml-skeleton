@@ -5,6 +5,7 @@ from tqdm import tqdm
 
 import wandb
 import huggingface_hub as hf
+from transformers import PreTrainedModel
 
 from omegaconf import DictConfig, OmegaConf
 
@@ -14,6 +15,9 @@ from utils.logging_utils import LogSection
 
 
 class BaseTrainer:
+
+    model: PreTrainedModel
+
 
     def __init__(
         self,
@@ -26,7 +30,7 @@ class BaseTrainer:
         self.dataset = dataset
 
         self.checkpoint_path = None
-        # self.repo_name = None
+        self.repo_name = None
         if not self.config.debug:
 
             os.makedirs(constants.LOCAL_DATA_PATH, exist_ok=True)
@@ -38,11 +42,12 @@ class BaseTrainer:
                 constants.LOCAL_DATA_PATH,
                 full_name
             )
-            # self.repo_name = f"{constants.HF_ID}/{full_name}"
 
-            # hf.create_repo(
-            #     self.repo_name, private=True, exist_ok=True, token=constants.HF_TOKEN
-            # )
+            if self.config.trainer.push_to_hub:
+                self.repo_name = f"{constants.HF_ID}/{full_name}"
+                hf.create_repo(
+                    self.repo_name, private=True, exist_ok=True, token=constants.HF_TOKEN
+                )
 
             # create the wandb project
             wandb.init(
@@ -91,6 +96,14 @@ class BaseTrainer:
                 path,
                 push_to_hub=False,
             )
+
+            if self.config.trainer.push_to_hub:
+                hf.upload_folder(
+                    repo_id=self.repo_name,
+                    folder_path=path,
+                    path_in_repo=f"step_{step:012d}",
+                    token=constants.HF_TOKEN,
+                )
 
         
     def manual_checkpoint(self, step):
@@ -187,16 +200,6 @@ class BaseTrainer:
                 if triggered_save or step % self.config.trainer.checkpoint_interval == 0 or self.manual_checkpoint(step):
                     self.save_checkpoint(step)
 
-        # except KeyboardInterrupt:
-
-        #     if not self.config.debug:
-        #         self.optimizer.zero_grad(set_to_none=True)
-
-        #         print("Training interrupted! Saving checkpoint...")
-        #         self.save_checkpoint(step)
-
-        #     raise KeyboardInterrupt("Training interrupted by user.")
-    
 
     def train_step(
         self,

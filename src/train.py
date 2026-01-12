@@ -34,7 +34,7 @@ def main(config: omegaconf.DictConfig):
                 print(f"Warning: parameter {k} not used from checkpoint!")
         for k in model.state_dict().keys():
             if k not in state_model.state_dict().keys():
-                print(f"Warning: key {k} not found in checkpoint!")
+                print(f"Warning: parameter {k} not found in checkpoint!")
             
         model_config = model.config.to_dict()
         state_config = state_model.config.to_dict()
