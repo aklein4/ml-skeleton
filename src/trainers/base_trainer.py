@@ -46,7 +46,7 @@ class BaseTrainer:
             if self.config.trainer.push_to_hub:
                 self.repo_name = f"{constants.HF_ID}/{full_name}"
                 hf.create_repo(
-                    self.repo_name, private=True, exist_ok=True, token=constants.HF_TOKEN
+                    self.repo_name, private=False, exist_ok=True, token=constants.HF_TOKEN
                 )
 
             # create the wandb project
@@ -159,6 +159,7 @@ class BaseTrainer:
 
         # init loop vars
         step = 0
+        epoch = 0
         pbar = tqdm(desc=f"Training {self.config.project}/{self.config.name}")
         pbar.update(0)
 
@@ -179,9 +180,6 @@ class BaseTrainer:
                     **batch
                 )
 
-                # update tracking
-                step += 1
-
                 # update pbar
                 pbar.update(1)
                 pbar.set_postfix(
@@ -192,13 +190,19 @@ class BaseTrainer:
                 triggered_save = aux.pop("save_checkpoint", False)
                 self.safe_log(
                     loss=loss,
+                    epoch=epoch,
                     **aux,
                     **optimizer.get_log_info()
                 )
 
+                # increment step before checkpointing, so save path is "after N steps of training"
+                step += 1
+
                 # save checkpoint
                 if triggered_save or step % self.config.trainer.checkpoint_interval == 0 or self.manual_checkpoint(step):
                     self.save_checkpoint(step)
+
+            epoch += 1
 
 
     def train_step(
@@ -221,6 +225,13 @@ class BaseTrainer:
 
         if step == 0:
             self.debug_gradients()
+
+        if self.config.trainer.grad_norm_clip is not None:
+            grad_norm = torch.nn.utils.clip_grad_norm_(
+                self.model.parameters(),
+                self.config.trainer.grad_norm_clip
+            )
+            aux["grad_norm"] = grad_norm
 
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
